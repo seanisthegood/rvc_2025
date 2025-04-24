@@ -14,6 +14,7 @@ rankings = {}  # rank number -> {candidate: %}
 # Let user use sliders for any candidate and auto-redistribute remaining to unedited ones
 for rank in range(1, 6):
     st.markdown(f"### {rank} Choice Distribution (Flexible + Redistributive with Sliders)")
+    st.caption("Assign values to one or more candidates — remaining percentage is auto-distributed.")
     manual_inputs = {}
     total_so_far = 0
     cols = st.columns(len(candidates))
@@ -25,6 +26,7 @@ for rank in range(1, 6):
         total_so_far += manual_inputs[cand]
 
     remaining = max(0, 100 - total_so_far)
+    st.markdown(f"**Remaining % to allocate: {remaining}%**")
     unset_candidates = [c for c in candidates if manual_inputs[c] == 0]
     rank_pct = {}
 
@@ -43,14 +45,9 @@ for rank in range(1, 6):
         rank_pct = manual_inputs
 
     rankings[rank] = rank_pct
-    st.write(rank_pct)
 
 st.markdown("---")
 st.markdown("✅ You can now assign any % per candidate using sliders, and the rest auto-balance among unassigned.")
-
-# Display table summary
-st.markdown("### Summary Table")
-st.dataframe(rankings)
 
 # --- Generate Ballots ---
 num_ballots = st.slider("Number of simulated voters", 100, 5000, 1000, step=100)
