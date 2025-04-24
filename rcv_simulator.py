@@ -11,7 +11,7 @@ st.title("2025 NYC RCV Simulator – Rank-Based Vote Modeling")
 candidates = ["Cuomo", "Zohran", "Lander", "Ramos", "Stringer"]
 rankings = {}  # rank number -> {candidate: %}
 
-# Let user use sliders + lock for redistributive logic
+# Let user use sliders + lock for redistributive logic with max constraint
 for rank in range(1, 6):
     st.markdown(f"### {rank} Choice Distribution (Lockable + Redistributive Sliders)")
     st.caption("Assign values to candidates. Locked sliders retain values; the rest share remaining %.")
@@ -20,17 +20,29 @@ for rank in range(1, 6):
     total_locked = 0
     cols = st.columns(len(candidates))
 
+    # Pre-check lock state to calculate limits
+    lock_states = {}
+    pre_vals = {}
     for i, cand in enumerate(candidates):
-        with cols[i]:
-            lock = st.checkbox(f"Lock {cand}", key=f"lock_{rank}_{cand}")
-            val = st.slider(f"{cand} %", 0, 100, 0, key=f"rank_{rank}_{cand}")
-        manual_inputs[cand] = val
-        locked[cand] = lock
-        if lock:
-            total_locked += val
+        lock_states[cand] = st.session_state.get(f"lock_{rank}_{cand}", False)
+        pre_vals[cand] = st.session_state.get(f"rank_{rank}_{cand}", 0)
+        if lock_states[cand]:
+            total_locked += pre_vals[cand]
 
     remaining = max(0, 100 - total_locked)
     st.markdown(f"**Remaining % to allocate: {remaining}%**")
+
+    for i, cand in enumerate(candidates):
+        with cols[i]:
+            lock = st.checkbox(f"Lock {cand}", value=lock_states[cand], key=f"lock_{rank}_{cand}")
+            max_val = 100 if lock else min(100, remaining + pre_vals[cand])
+            val = st.slider(f"{cand} %", 0, max_val, pre_vals[cand], key=f"rank_{rank}_{cand}")
+        manual_inputs[cand] = val
+        locked[cand] = lock
+
+    # Redistribute remaining
+    total_locked = sum(val for cand, val in manual_inputs.items() if locked[cand])
+    remaining = max(0, 100 - total_locked)
     unlocked = [c for c in candidates if not locked[c]]
     rank_pct = {}
 
@@ -51,7 +63,7 @@ for rank in range(1, 6):
     rankings[rank] = rank_pct
 
 st.markdown("---")
-st.markdown("✅ Locked sliders retain assigned % while others auto-adjust to fill remaining.")
+st.markdown("✅ Locked sliders retain assigned % while others auto-adjust to fill remaining. You cannot exceed 100% total.")
 
 # --- Generate Ballots ---
 num_ballots = st.slider("Number of simulated voters", 100, 5000, 1000, step=100)
