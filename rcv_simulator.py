@@ -11,26 +11,42 @@ st.title("2025 NYC RCV Simulator – Rank-Based Vote Modeling")
 candidates = ["Cuomo", "Zohran", "Lander", "Ramos", "Stringer"]
 rankings = {}  # rank number -> {candidate: %}
 
-# Let user progressively assign % of voters for each rank
+# Let user set sliders manually for any candidate and auto-redistribute remaining to unedited ones
 for rank in range(1, 6):
-    st.markdown(f"### {rank} Choice Distribution (Progressive Allocation)")
-    rank_pct = {}
-    remaining = 100
+    st.markdown(f"### {rank} Choice Distribution (Flexible + Redistributive)")
+    manual_inputs = {}
+    total_so_far = 0
     cols = st.columns(len(candidates))
+
     for i, cand in enumerate(candidates):
-        if i == len(candidates) - 1:
-            rank_pct[cand] = remaining
-            cols[i].markdown(f"**{cand}: {remaining}% (auto-filled)**")
-        else:
-            max_val = remaining
-            rank_pct[cand] = cols[i].slider(
-                f"{cand}", 0, max_val, 0, key=f"{cand}_r{rank}"
-            )
-            remaining -= rank_pct[cand]
+        manual_inputs[cand] = cols[i].number_input(
+            f"{cand} %", min_value=0, max_value=100, value=0, step=1, key=f"rank_{rank}_{cand}"
+        )
+        total_so_far += manual_inputs[cand]
+
+    remaining = max(0, 100 - total_so_far)
+    unset_candidates = [c for c in candidates if manual_inputs[c] == 0]
+    rank_pct = {}
+
+    if unset_candidates:
+        even_share = remaining // len(unset_candidates)
+        for cand in candidates:
+            if manual_inputs[cand] > 0:
+                rank_pct[cand] = manual_inputs[cand]
+            else:
+                rank_pct[cand] = even_share
+
+        diff = 100 - sum(rank_pct.values())
+        if diff != 0:
+            rank_pct[unset_candidates[-1]] += diff
+    else:
+        rank_pct = manual_inputs
+
     rankings[rank] = rank_pct
+    st.write(rank_pct)
 
 st.markdown("---")
-st.markdown("✅ Rank totals now auto-balance. You’ve defined what % of *all voters* rank each candidate in each position.")
+st.markdown("✅ You can now assign any % per candidate, and the rest auto-balance among unassigned.")
 
 # Display table summary
 st.markdown("### Summary Table")
