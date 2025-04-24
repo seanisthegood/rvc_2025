@@ -42,7 +42,7 @@ for rank in range(1, 6):
                 st.session_state[key] = all_values[cand]  # Ensure value is preserved in state
                 st.markdown(f"**{cand} %: {manual_inputs[cand]} (locked)**")
             else:
-                max_val = min(all_values[cand], remaining)
+                max_val = max(0, min(100, remaining))
                 default_val = min(all_values[cand], max_val)
                 manual_inputs[cand] = st.slider(f"{cand} %", 0, max_val, default_val, key=key)
 
@@ -143,3 +143,4 @@ fig = go.Figure(data=[go.Sankey(
 )])
 fig.update_layout(title_text="RCV Vote Flow", font_size=10)
 st.plotly_chart(fig, use_container_width=True)
+
