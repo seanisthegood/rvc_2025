@@ -1,98 +1,120 @@
-
 import streamlit as st
-import pandas as pd
-from collections import Counter
-import matplotlib.pyplot as plt
+import random
+from collections import Counter, defaultdict
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="2025 NYC RCV Simulator", layout="wide")
+st.set_page_config(page_title="RCV Simulator: Rank Distribution", layout="wide")
 
-st.title("🗳️ 2025 NYC Democratic Mayoral Ranked Choice Voting Simulator")
+st.title("2025 NYC RCV Simulator – Rank-Based Vote Modeling")
 
-# --- Candidates ---
-candidates = [
-    "Andrew Cuomo",
-    "Zohran Mamdani",
-    "Brad Lander",
-    "Zellnor Myrie",
-    "Scott Stringer",
-    "Jessica Ramos",
-    "Whitney Tilson"
-]
+# Define candidates
+candidates = ["Cuomo", "Zohran", "Lander", "Ramos", "Stringer"]
+rankings = {}  # rank number -> {candidate: %}
 
-# --- Input Parameters ---
-st.sidebar.header("Input Vote Share")
-st.sidebar.markdown("Enter the **first-choice** vote percentages for each candidate (must total 100%)")
+# Let user define % of voters giving each candidate a specific rank
+for rank in range(1, 6):
+    st.markdown(f"### {rank} Choice Distribution")
+    cols = st.columns(len(candidates))
+    rank_pct = {}
+    for i, cand in enumerate(candidates):
+        rank_pct[cand] = cols[i].slider(
+            f"{cand}", 0, 100, 20, key=f"{cand}_r{rank}"
+        )
+    total = sum(rank_pct.values())
+    if total != 100:
+        st.error(f"Rank {rank} total must be 100%, but it is {total}%")
+    rankings[rank] = rank_pct
 
-percentages = {}
-total_votes = st.sidebar.number_input("Total number of voters", min_value=1000, step=1000, value=100000)
+st.markdown("---")
+st.markdown("✅ Now you have defined what % of *all voters* rank each candidate in each position.")
 
-default_dist = [25, 20, 15, 10, 10, 10, 10]  # Example values
+# Display table summary
+st.markdown("### Summary Table")
+st.dataframe(rankings)
 
-for i, cand in enumerate(candidates):
-    percentages[cand] = st.sidebar.number_input(f"{cand} (%)", min_value=0.0, max_value=100.0, value=float(default_dist[i]))
+# --- Generate Ballots ---
+num_ballots = 1000
+ballots = []
 
-if sum(percentages.values()) != 100:
-    st.sidebar.warning("Total must equal 100%")
+# Create ballots based on the rank distribution
+for _ in range(num_ballots):
+    ballot = [None] * 5
+    available = candidates[:]
+    for rank in range(1, 6):
+        weights = [(cand, rankings[rank][cand]) for cand in available if rankings[rank][cand] > 0]
+        if not weights:
+            break
+        names, probs = zip(*weights)
+        choice = random.choices(names, weights=probs, k=1)[0]
+        ballot[rank - 1] = choice
+        available.remove(choice)
+    ballots.append([c for c in ballot if c])
 
-# --- Generate Ballots Based on Percentages ---
-def generate_ballots_from_percentages(pct_dict, total):
-    import random
-    ballots = []
-    for cand, pct in pct_dict.items():
-        count = int((pct / 100.0) * total)
-        for _ in range(count):
-            others = [c for c in candidates if c != cand]
-            random.shuffle(others)
-            ballots.append([cand] + others)
-    return ballots
-
-# --- RCV Logic ---
-def run_rcv(ballots):
-    rounds = []
-    active = candidates.copy()
-    eliminated = []
-
-    def count_votes(ballots, active):
-        counts = Counter()
-        for ballot in ballots:
-            for choice in ballot:
-                if choice in active:
-                    counts[choice] += 1
-                    break
-        return counts
-
-    total_votes = len(ballots)
+# --- RCV Simulation with Flow Tracking ---
+def simulate_rcv_with_flow(ballots, candidates):
+    remaining = set(candidates)
+    transfer_log = []
+    round_num = 1
+    current_ballots = ballots[:]
 
     while True:
-        round_counts = count_votes(ballots, active)
-        rounds.append(round_counts.copy())
+        counts = Counter()
+        for b in current_ballots:
+            for c in b:
+                if c in remaining:
+                    counts[c] += 1
+                    break
 
-        # Check for winner
-        for cand, count in round_counts.items():
-            if count > total_votes / 2:
-                return rounds, cand
+        total_votes = sum(counts.values())
+        if not total_votes:
+            break
 
-        # Eliminate lowest
-        min_votes = min(round_counts.values())
-        lowest = [cand for cand, v in round_counts.items() if v == min_votes]
+        if any(v > total_votes / 2 for v in counts.values()):
+            break
 
-        # If tie for lowest, eliminate alphabetically
-        to_eliminate = sorted(lowest)[0]
-        active.remove(to_eliminate)
-        eliminated.append(to_eliminate)
+        eliminated = min((c for c in remaining), key=lambda c: counts[c])
+        remaining.remove(eliminated)
 
-        if len(active) == 1:
-            rounds.append(Counter({active[0]: total_votes}))
-            return rounds, active[0]
+        transfer = defaultdict(int)
+        for b in current_ballots:
+            if b and b[0] == eliminated:
+                for c in b[1:]:
+                    if c in remaining:
+                        transfer[c] += 1
+                        break
+                else:
+                    transfer["Exhausted"] += 1
 
-# --- Run Simulation ---
-if st.sidebar.button("Run Simulation") and sum(percentages.values()) == 100:
-    ballots = generate_ballots_from_percentages(percentages, total_votes)
-    rcv_rounds, winner = run_rcv(ballots)
+        for b in current_ballots:
+            if eliminated in b:
+                b.remove(eliminated)
 
-    st.markdown(f"### ✅ Winner: **{winner}**")
+        transfer_log.append({"round": round_num, "from": eliminated, "to": dict(transfer)})
+        round_num += 1
 
-    round_df = pd.DataFrame(rcv_rounds).fillna(0).astype(int)
-    round_df.index.name = "Round"
-    st.bar_chart(round_df)
-    st.dataframe(round_df.style.highlight_max(axis=1, color="lightgreen"))
+    return transfer_log
+
+# Run simulation and collect transfers
+transfers = simulate_rcv_with_flow(ballots, candidates)
+
+# Build Sankey Data
+labels = candidates + ["Exhausted"]
+label_index = {label: i for i, label in enumerate(labels)}
+source, target, value = [], [], []
+
+for t in transfers:
+    src = label_index[t["from"]]
+    for to_cand, count in t["to"].items():
+        tgt = label_index[to_cand]
+        source.append(src)
+        target.append(tgt)
+        value.append(count)
+
+# Display Sankey Diagram
+st.markdown("### Vote Transfers Through Rounds")
+fig = go.Figure(data=[go.Sankey(
+    node=dict(label=labels, pad=15, thickness=20),
+    link=dict(source=source, target=target, value=value)
+)])
+fig.update_layout(title_text="RCV Vote Flow", font_size=10)
+st.plotly_chart(fig, use_container_width=True)
