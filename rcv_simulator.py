@@ -27,28 +27,27 @@ for rank in range(1, 6):
     for i, cand in enumerate(candidates):
         with cols[i]:
             prev_val = st.session_state.get(f"rank_{rank}_{cand}", 0)
-            if locked[cand]:
-                manual_inputs[cand] = st.slider(
-                    f"{cand} %", 0, 100, prev_val, key=f"rank_{rank}_{cand}"
-                )
-            else:
-                manual_inputs[cand] = prev_val
+            manual_inputs[cand] = prev_val
 
     total_locked = sum(val for cand, val in manual_inputs.items() if locked[cand])
     remaining = max(0, 100 - total_locked)
 
-    # Adjust unlocked sliders
+    total_all = 0
     for i, cand in enumerate(candidates):
-        if not locked[cand]:
-            with cols[i]:
-                current_val = manual_inputs[cand]
-                max_val = min(100, remaining + current_val)
+        with cols[i]:
+            current_val = manual_inputs[cand]
+            if locked[cand]:
+                manual_inputs[cand] = st.slider(
+                    f"{cand} %", 0, 100, current_val, key=f"rank_{rank}_{cand}"
+                )
+            else:
+                max_val = max(0, min(100, remaining + current_val))
                 manual_inputs[cand] = st.slider(
                     f"{cand} %", 0, max_val, current_val, key=f"rank_{rank}_{cand}"
                 )
+        total_all += manual_inputs[cand]
 
-    # Final adjustment to ensure total does not exceed 100
-    total_all = sum(manual_inputs.values())
+    # Ensure capped at 100 after all input
     if total_all > 100:
         overflow = total_all - 100
         for cand in reversed(candidates):
@@ -154,4 +153,5 @@ fig = go.Figure(data=[go.Sankey(
 )])
 fig.update_layout(title_text="RCV Vote Flow", font_size=10)
 st.plotly_chart(fig, use_container_width=True)
+
 
