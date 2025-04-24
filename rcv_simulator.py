@@ -39,10 +39,12 @@ for rank in range(1, 6):
             key = f"rank_{rank}_{cand}"
             if locked[cand]:
                 manual_inputs[cand] = all_values[cand]
+                st.session_state[key] = all_values[cand]  # Ensure value is preserved in state
                 st.markdown(f"**{cand} %: {manual_inputs[cand]} (locked)**")
             else:
                 max_val = min(all_values[cand], remaining)
-                manual_inputs[cand] = st.slider(f"{cand} %", 0, max_val, all_values[cand], key=key)
+                default_val = min(all_values[cand], max_val)
+                manual_inputs[cand] = st.slider(f"{cand} %", 0, max_val, default_val, key=key)
 
     total_all = sum(manual_inputs.values())
     remaining = max(0, 100 - total_all)
