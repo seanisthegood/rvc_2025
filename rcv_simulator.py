@@ -17,51 +17,47 @@ for rank in range(1, 6):
     st.caption("Assign values to candidates. Locked sliders retain values and cannot be moved; the rest share remaining %. Cannot exceed 100%.")
     manual_inputs = {}
     locked = {}
-    total_locked = 0
+    user_inputs = {}
     cols = st.columns(len(candidates))
 
+    # First collect lock states and display user sliders for unlocked
     for i, cand in enumerate(candidates):
         with cols[i]:
             locked[cand] = st.checkbox(f"Lock {cand}", key=f"lock_{rank}_{cand}")
 
-    # Gather values for locked and unlocked, but don't update remaining until after all locks
-    for i, cand in enumerate(candidates):
-        manual_inputs[cand] = st.session_state.get(f"rank_{rank}_{cand}", 0)
-
-    # Only after all locking states known, compute remaining
-    total_locked = sum(val for cand, val in manual_inputs.items() if locked[cand])
-    remaining = max(0, 100 - total_locked)
-
-    total_all = 0
+    # Display sliders and store values, but do not apply constraint until after all are shown
     for i, cand in enumerate(candidates):
         with cols[i]:
-            current_val = manual_inputs[cand]
+            key = f"rank_{rank}_{cand}"
+            default_val = st.session_state.get(key, 0)
             if locked[cand]:
-                st.markdown(f"**{cand} %: {current_val} (locked)**")
+                user_inputs[cand] = default_val
+                st.markdown(f"**{cand} %: {default_val} (locked)**")
             else:
-                max_val = max(0, min(100, remaining + current_val))
-                manual_inputs[cand] = st.slider(
-                    f"{cand} %", 0, max_val, current_val, key=f"rank_{rank}_{cand}"
-                )
-        total_all += manual_inputs[cand]
+                user_inputs[cand] = st.slider(f"{cand} %", 0, 100, default_val, key=key)
 
-    # Enforce total at most 100
-    if total_all > 100:
-        overflow = total_all - 100
-        for cand in reversed(candidates):
-            if not locked[cand] and manual_inputs[cand] > 0:
-                deduct = min(manual_inputs[cand], overflow)
-                manual_inputs[cand] -= deduct
-                overflow -= deduct
-            if overflow == 0:
-                break
+    # After all inputs, compute totals and apply enforcement
+    total_locked = sum(val for cand, val in user_inputs.items() if locked[cand])
+    total_unlocked = sum(val for cand, val in user_inputs.items() if not locked[cand])
+    total_all = total_locked + total_unlocked
 
-    st.markdown(f"**Remaining % to allocate: {max(0, 100 - sum(manual_inputs.values()))}%**")
+    # If over 100, reduce unlocked values proportionally
+    overflow = max(0, total_all - 100)
+    manual_inputs = user_inputs.copy()
+    if overflow > 0:
+        total_unlocked = sum(val for cand, val in manual_inputs.items() if not locked[cand])
+        for cand in candidates:
+            if not locked[cand] and total_unlocked > 0:
+                reduction = (manual_inputs[cand] / total_unlocked) * overflow
+                manual_inputs[cand] = max(0, manual_inputs[cand] - round(reduction))
+
+    remaining = max(0, 100 - sum(manual_inputs.values()))
+    st.markdown(f"**Remaining % to allocate: {remaining}%**")
 
     rankings[rank] = manual_inputs.copy()
 
 st.markdown("---")
-st.markdown("✅ Locked sliders are now display-only. Remaining sliders enforce 100% total.")
+st.markdown("✅ Locked sliders are now display-only. Remaining sliders enforce 100% total after input.")
 
 # --- Generate Ballots ---
 num_ballots = st.slider("Number of simulated voters", 100, 5000, 1000, step=100)
