@@ -35,7 +35,7 @@ for rank in range(1, 6):
     for i, cand in enumerate(candidates):
         with cols[i]:
             lock = st.checkbox(f"Lock {cand}", value=lock_states[cand], key=f"lock_{rank}_{cand}")
-            max_val = 100 if lock else min(100, remaining + pre_vals[cand])
+            max_val = 100 if lock else max(1, min(100, remaining + pre_vals[cand]))
             val = st.slider(f"{cand} %", 0, max_val, pre_vals[cand], key=f"rank_{rank}_{cand}")
         manual_inputs[cand] = val
         locked[cand] = lock
@@ -153,4 +153,5 @@ fig = go.Figure(data=[go.Sankey(
 )])
 fig.update_layout(title_text="RCV Vote Flow", font_size=10)
 st.plotly_chart(fig, use_container_width=True)
+
 
