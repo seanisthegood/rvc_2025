@@ -24,7 +24,6 @@ for rank in range(1, 6):
         with cols[i]:
             locked[cand] = st.checkbox(f"Lock {cand}", key=f"lock_{rank}_{cand}")
 
-    # Collect locked values
     for i, cand in enumerate(candidates):
         with cols[i]:
             prev_val = st.session_state.get(f"rank_{rank}_{cand}", 0)
@@ -37,7 +36,6 @@ for rank in range(1, 6):
 
     total_locked = sum(val for cand, val in manual_inputs.items() if locked[cand])
     remaining = max(0, 100 - total_locked)
-    st.markdown(f"**Remaining % to allocate: {remaining}%**")
 
     # Adjust unlocked sliders
     for i, cand in enumerate(candidates):
@@ -49,7 +47,7 @@ for rank in range(1, 6):
                     f"{cand} %", 0, max_val, current_val, key=f"rank_{rank}_{cand}"
                 )
 
-    # Recalculate final values strictly capped at 100%
+    # Final adjustment to ensure total does not exceed 100
     total_all = sum(manual_inputs.values())
     if total_all > 100:
         overflow = total_all - 100
@@ -60,6 +58,8 @@ for rank in range(1, 6):
                 overflow -= deduct
             if overflow == 0:
                 break
+
+    st.markdown(f"**Remaining % to allocate: {max(0, 100 - sum(manual_inputs.values()))}%**")
 
     rankings[rank] = manual_inputs.copy()
 
