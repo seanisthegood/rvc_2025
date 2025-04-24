@@ -11,15 +11,15 @@ st.title("2025 NYC RCV Simulator – Rank-Based Vote Modeling")
 candidates = ["Cuomo", "Zohran", "Lander", "Ramos", "Stringer"]
 rankings = {}  # rank number -> {candidate: %}
 
-# Let user set sliders manually for any candidate and auto-redistribute remaining to unedited ones
+# Let user use sliders for any candidate and auto-redistribute remaining to unedited ones
 for rank in range(1, 6):
-    st.markdown(f"### {rank} Choice Distribution (Flexible + Redistributive)")
+    st.markdown(f"### {rank} Choice Distribution (Flexible + Redistributive with Sliders)")
     manual_inputs = {}
     total_so_far = 0
     cols = st.columns(len(candidates))
 
     for i, cand in enumerate(candidates):
-        manual_inputs[cand] = cols[i].number_input(
+        manual_inputs[cand] = cols[i].slider(
             f"{cand} %", min_value=0, max_value=100, value=0, step=1, key=f"rank_{rank}_{cand}"
         )
         total_so_far += manual_inputs[cand]
@@ -46,7 +46,7 @@ for rank in range(1, 6):
     st.write(rank_pct)
 
 st.markdown("---")
-st.markdown("✅ You can now assign any % per candidate, and the rest auto-balance among unassigned.")
+st.markdown("✅ You can now assign any % per candidate using sliders, and the rest auto-balance among unassigned.")
 
 # Display table summary
 st.markdown("### Summary Table")
