@@ -11,43 +11,47 @@ st.title("2025 NYC RCV Simulator – Rank-Based Vote Modeling")
 candidates = ["Cuomo", "Zohran", "Lander", "Ramos", "Stringer"]
 rankings = {}  # rank number -> {candidate: %}
 
-# Let user use sliders for any candidate and auto-redistribute remaining to unedited ones
+# Let user use sliders + lock for redistributive logic
 for rank in range(1, 6):
-    st.markdown(f"### {rank} Choice Distribution (Flexible + Redistributive with Sliders)")
-    st.caption("Assign values to one or more candidates — remaining percentage is auto-distributed.")
+    st.markdown(f"### {rank} Choice Distribution (Lockable + Redistributive Sliders)")
+    st.caption("Assign values to candidates. Locked sliders retain values; the rest share remaining %.")
     manual_inputs = {}
-    total_so_far = 0
+    locked = {}
+    total_locked = 0
     cols = st.columns(len(candidates))
 
     for i, cand in enumerate(candidates):
-        manual_inputs[cand] = cols[i].slider(
-            f"{cand} %", min_value=0, max_value=100, value=0, step=1, key=f"rank_{rank}_{cand}"
-        )
-        total_so_far += manual_inputs[cand]
+        with cols[i]:
+            lock = st.checkbox(f"Lock {cand}", key=f"lock_{rank}_{cand}")
+            val = st.slider(f"{cand} %", 0, 100, 0, key=f"rank_{rank}_{cand}")
+        manual_inputs[cand] = val
+        locked[cand] = lock
+        if lock:
+            total_locked += val
 
-    remaining = max(0, 100 - total_so_far)
+    remaining = max(0, 100 - total_locked)
     st.markdown(f"**Remaining % to allocate: {remaining}%**")
-    unset_candidates = [c for c in candidates if manual_inputs[c] == 0]
+    unlocked = [c for c in candidates if not locked[c]]
     rank_pct = {}
 
-    if unset_candidates:
-        even_share = remaining // len(unset_candidates)
+    if unlocked:
+        even_share = remaining // len(unlocked)
         for cand in candidates:
-            if manual_inputs[cand] > 0:
+            if locked[cand]:
                 rank_pct[cand] = manual_inputs[cand]
             else:
                 rank_pct[cand] = even_share
 
         diff = 100 - sum(rank_pct.values())
         if diff != 0:
-            rank_pct[unset_candidates[-1]] += diff
+            rank_pct[unlocked[-1]] += diff
     else:
         rank_pct = manual_inputs
 
     rankings[rank] = rank_pct
 
 st.markdown("---")
-st.markdown("✅ You can now assign any % per candidate using sliders, and the rest auto-balance among unassigned.")
+st.markdown("✅ Locked sliders retain assigned % while others auto-adjust to fill remaining.")
 
 # --- Generate Ballots ---
 num_ballots = st.slider("Number of simulated voters", 100, 5000, 1000, step=100)
@@ -137,3 +141,4 @@ fig = go.Figure(data=[go.Sankey(
 )])
 fig.update_layout(title_text="RCV Vote Flow", font_size=10)
 st.plotly_chart(fig, use_container_width=True)
+
