@@ -2,4 +2,4 @@ streamlit==1.44.1
 pandas==2.2.2
 numpy==1.26.4
 matplotlib
-plotly
+Poorly

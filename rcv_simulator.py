@@ -11,29 +11,33 @@ st.title("2025 NYC RCV Simulator – Rank-Based Vote Modeling")
 candidates = ["Cuomo", "Zohran", "Lander", "Ramos", "Stringer"]
 rankings = {}  # rank number -> {candidate: %}
 
-# Let user define % of voters giving each candidate a specific rank
+# Let user progressively assign % of voters for each rank
 for rank in range(1, 6):
-    st.markdown(f"### {rank} Choice Distribution")
-    cols = st.columns(len(candidates))
+    st.markdown(f"### {rank} Choice Distribution (Progressive Allocation)")
     rank_pct = {}
+    remaining = 100
+    cols = st.columns(len(candidates))
     for i, cand in enumerate(candidates):
-        rank_pct[cand] = cols[i].slider(
-            f"{cand}", 0, 100, 20, key=f"{cand}_r{rank}"
-        )
-    total = sum(rank_pct.values())
-    if total != 100:
-        st.error(f"Rank {rank} total must be 100%, but it is {total}%")
+        if i == len(candidates) - 1:
+            rank_pct[cand] = remaining
+            cols[i].markdown(f"**{cand}: {remaining}% (auto-filled)**")
+        else:
+            max_val = remaining
+            rank_pct[cand] = cols[i].slider(
+                f"{cand}", 0, max_val, 0, key=f"{cand}_r{rank}"
+            )
+            remaining -= rank_pct[cand]
     rankings[rank] = rank_pct
 
 st.markdown("---")
-st.markdown("✅ Now you have defined what % of *all voters* rank each candidate in each position.")
+st.markdown("✅ Rank totals now auto-balance. You’ve defined what % of *all voters* rank each candidate in each position.")
 
 # Display table summary
 st.markdown("### Summary Table")
 st.dataframe(rankings)
 
 # --- Generate Ballots ---
-num_ballots = 1000
+num_ballots = st.slider("Number of simulated voters", 100, 5000, 1000, step=100)
 ballots = []
 
 # Create ballots based on the rank distribution
@@ -70,6 +74,8 @@ def simulate_rcv_with_flow(ballots, candidates):
             break
 
         if any(v > total_votes / 2 for v in counts.values()):
+            winner = max(counts.items(), key=lambda x: x[1])
+            st.success(f"🏆 Winner: {winner[0]} with {winner[1]} votes")
             break
 
         eliminated = min((c for c in remaining), key=lambda c: counts[c])
