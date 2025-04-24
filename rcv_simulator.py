@@ -14,7 +14,7 @@ rankings = {}  # rank number -> {candidate: %}
 # Let user use sliders + lock for redistributive logic with strict enforcement of 100% total
 for rank in range(1, 6):
     st.markdown(f"### {rank} Choice Distribution (Lockable + Redistributive Sliders)")
-    st.caption("Assign values to candidates. Locked sliders retain values; the rest share remaining %. Cannot exceed 100%.")
+    st.caption("Assign values to candidates. Locked sliders retain values and cannot be moved; the rest share remaining %. Cannot exceed 100%.")
     manual_inputs = {}
     locked = {}
     total_locked = 0
@@ -24,11 +24,11 @@ for rank in range(1, 6):
         with cols[i]:
             locked[cand] = st.checkbox(f"Lock {cand}", key=f"lock_{rank}_{cand}")
 
+    # Gather values for locked and unlocked, but don't update remaining until after all locks
     for i, cand in enumerate(candidates):
-        with cols[i]:
-            prev_val = st.session_state.get(f"rank_{rank}_{cand}", 0)
-            manual_inputs[cand] = prev_val
+        manual_inputs[cand] = st.session_state.get(f"rank_{rank}_{cand}", 0)
 
+    # Only after all locking states known, compute remaining
     total_locked = sum(val for cand, val in manual_inputs.items() if locked[cand])
     remaining = max(0, 100 - total_locked)
 
@@ -37,9 +37,7 @@ for rank in range(1, 6):
         with cols[i]:
             current_val = manual_inputs[cand]
             if locked[cand]:
-                manual_inputs[cand] = st.slider(
-                    f"{cand} %", 0, 100, current_val, key=f"rank_{rank}_{cand}"
-                )
+                st.markdown(f"**{cand} %: {current_val} (locked)**")
             else:
                 max_val = max(0, min(100, remaining + current_val))
                 manual_inputs[cand] = st.slider(
@@ -47,7 +45,7 @@ for rank in range(1, 6):
                 )
         total_all += manual_inputs[cand]
 
-    # Ensure capped at 100 after all input
+    # Enforce total at most 100
     if total_all > 100:
         overflow = total_all - 100
         for cand in reversed(candidates):
@@ -63,7 +61,7 @@ for rank in range(1, 6):
     rankings[rank] = manual_inputs.copy()
 
 st.markdown("---")
-st.markdown("✅ Locked sliders retain assigned %. Remaining sliders adjust within limits and total never exceeds 100%.")
+st.markdown("✅ Locked sliders are now display-only. Remaining sliders enforce 100% total.")
 
 # --- Generate Ballots ---
 num_ballots = st.slider("Number of simulated voters", 100, 5000, 1000, step=100)
@@ -153,5 +151,3 @@ fig = go.Figure(data=[go.Sankey(
 )])
 fig.update_layout(title_text="RCV Vote Flow", font_size=10)
 st.plotly_chart(fig, use_container_width=True)
-
-
