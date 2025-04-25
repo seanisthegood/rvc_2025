@@ -1,43 +1,31 @@
 import streamlit as st
+import plotly.graph_objects as go
 
+def render_sankey(transfers, candidates):
+    labels = []
+    label_map = {}
+    source, target, value = [], [], []
 
-def render_rank_sliders(candidates):
-    rankings = {}
-    for rank in range(1, 6):
-        st.markdown(f"### Rank {rank} Distribution (Lockable + Redistributive Sliders)")
-        st.caption("Each row must total 100%. Locked sliders cannot be moved; remaining % is auto-distributed across unlocked sliders.")
+    def get_label_index(label):
+        if label not in label_map:
+            label_map[label] = len(labels)
+            labels.append(label)
+        return label_map[label]
 
-        manual_inputs = {}
-        locked = {}
+    for t in transfers:
+        from_node = f"{t['from']} (R{t['round']})"
+        src_idx = get_label_index(from_node)
+        for to_cand, count in t["to"].items():
+            to_node = to_cand if to_cand == "Exhausted" else f"{to_cand} (R{t['round']+1})"
+            tgt_idx = get_label_index(to_node)
+            source.append(src_idx)
+            target.append(tgt_idx)
+            value.append(count)
 
-        cols = st.columns(len(candidates))
-
-        # First: draw lock checkboxes
-        for i, cand in enumerate(candidates):
-            with cols[i]:
-                locked[cand] = st.checkbox(f"Lock {cand}", key=f"lock_{rank}_{cand}")
-
-        # Load stored values
-        all_values = {cand: st.session_state.get(f"rank_{rank}_{cand}", 0) for cand in candidates}
-        total_locked = sum(all_values[cand] for cand in candidates if locked[cand])
-        remaining = max(0, 100 - total_locked)
-
-        # Now draw sliders per candidate (columns)
-        for i, cand in enumerate(candidates):
-            with cols[i]:
-                key = f"rank_{rank}_{cand}"
-                if locked[cand]:
-                    manual_inputs[cand] = all_values[cand]
-                    st.session_state[key] = all_values[cand]
-                    st.markdown(f"**{cand} %: {manual_inputs[cand]} (locked)**")
-                else:
-                    max_val = max(0, min(100, remaining))
-                    default_val = min(all_values[cand], max_val)
-                    manual_inputs[cand] = st.slider(" ", 0, max_val, default_val, key=key)
-
-        total_all = sum(manual_inputs.values())
-        remaining = max(0, 100 - total_all)
-        st.markdown(f"**Remaining % to allocate: {remaining}%**")
-
-        rankings[rank] = manual_inputs.copy()
-    return rankings
+    st.markdown("### Vote Transfers Through Rounds")
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(label=labels, pad=15, thickness=20),
+        link=dict(source=source, target=target, value=value)
+    )])
+    fig.update_layout(title_text="RCV Vote Flow", font_size=10)
+    st.plotly_chart(fig, use_container_width=True)
