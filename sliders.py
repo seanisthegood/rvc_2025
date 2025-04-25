@@ -12,22 +12,20 @@ def render_rank_sliders(candidates):
     values = {rank: {} for rank in range(1, 6)}
     remaining_display = {}
 
-    cols = st.columns(len(candidates))
-    for i, cand in enumerate(candidates):
-        with cols[i]:
-            st.markdown(f"### {cand}")
-            for rank in range(1, 6):
+    for rank in range(1, 6):
+        st.markdown(f"#### Rank {rank} Sliders")
+        cols = st.columns(len(candidates))
+        for i, cand in enumerate(candidates):
+            with cols[i]:
                 slider_key = f"rank_{rank}_{cand}"
                 lock_key = f"lock_{rank}_{cand}"
                 val = st.session_state.get(slider_key, 0)
-                st.markdown(f"Rank {rank}")
-                val = st.slider(" ", 0, 100, val, key=slider_key)
+                val = st.slider(f"{cand}", 0, 100, val, key=slider_key)
                 lock_val = st.checkbox("Lock", key=lock_key)
                 values[rank][cand] = val
                 locked[rank][cand] = lock_val
 
-    # Normalize sliders per rank
-    for rank in range(1, 6):
+        # Normalize sliders per rank
         manual_inputs = {}
         total_locked = sum(values[rank][c] for c in candidates if locked[rank][c])
         remaining = max(0, 100 - total_locked)
@@ -51,10 +49,7 @@ def render_rank_sliders(candidates):
 
         final_total = sum(manual_inputs.values()) + total_locked
         remaining_display[rank] = max(0, 100 - final_total)
-        rankings[rank] = manual_inputs.copy()
-
-    # Display each rank's remaining under its section
-    for rank in range(1, 6):
         st.markdown(f"**Remaining % to allocate for Rank {rank}: {remaining_display[rank]}%**")
+        rankings[rank] = manual_inputs.copy()
 
     return rankings
