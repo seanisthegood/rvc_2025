@@ -15,41 +15,25 @@ def render_rank_sliders(candidates):
     for rank in range(1, 6):
         st.markdown(f"#### Rank {rank} Sliders")
         cols = st.columns(len(candidates))
+        total_locked = 0
+
         for i, cand in enumerate(candidates):
+            slider_key = f"rank_{rank}_{cand}"
+            lock_key = f"lock_{rank}_{cand}"
+            current_val = st.session_state.get(slider_key, 0)
+
             with cols[i]:
-                slider_key = f"rank_{rank}_{cand}"
-                lock_key = f"lock_{rank}_{cand}"
-                val = st.session_state.get(slider_key, 0)
-                val = st.slider(f"{cand}", 0, 100, val, key=slider_key)
                 lock_val = st.checkbox("Lock", key=lock_key)
+                max_val = 100 if lock_val else max(0, 100 - total_locked)
+                val = st.slider(f"{cand}", 0, max_val, current_val, key=slider_key)
                 values[rank][cand] = val
                 locked[rank][cand] = lock_val
+                if lock_val:
+                    total_locked += val
 
-        # Normalize sliders per rank
-        manual_inputs = {}
-        total_locked = sum(values[rank][c] for c in candidates if locked[rank][c])
         remaining = max(0, 100 - total_locked)
-
-        for cand in candidates:
-            if locked[rank][cand]:
-                manual_inputs[cand] = values[rank][cand]
-            else:
-                max_val = max(0, min(100, remaining + values[rank][cand]))
-                val = min(values[rank][cand], max_val)
-                manual_inputs[cand] = val
-
-        # Enforce 100% cap
-        unlocked = [c for c in candidates if not locked[rank][c]]
-        total_unlocked = sum(manual_inputs[c] for c in unlocked)
-        overage = max(0, total_locked + total_unlocked - 100)
-        if overage > 0 and total_unlocked > 0:
-            for c in unlocked:
-                prop = manual_inputs[c] / total_unlocked
-                manual_inputs[c] = max(0, manual_inputs[c] - round(overage * prop))
-
-        final_total = sum(manual_inputs.values()) + total_locked
-        remaining_display[rank] = max(0, 100 - final_total)
+        rankings[rank] = {c: values[rank][c] for c in candidates}
+        remaining_display[rank] = remaining
         st.markdown(f"**Remaining % to allocate for Rank {rank}: {remaining_display[rank]}%**")
-        rankings[rank] = manual_inputs.copy()
 
     return rankings
