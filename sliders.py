@@ -56,3 +56,4 @@ def render_rank_sliders(candidates):
         rankings[rank] = {cand: sliders[cand] for cand in candidates}
 
     return rankings
+
