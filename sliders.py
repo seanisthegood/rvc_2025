@@ -25,7 +25,7 @@ def render_rank_sliders(candidates):
             with cols[i]:
                 lock_val = st.checkbox("Lock", key=lock_key)
                 max_val = 100 if lock_val else max(0, 100 - total_locked)
-                val = st.slider(f"{cand}", 0, max_val, current_val, key=slider_key)
+                val = st.slider(f"{cand}", 0, max_val, current_val, key=slider_key, disabled=lock_val)
                 values[rank][cand] = val
                 locked[rank][cand] = lock_val
                 if lock_val:
