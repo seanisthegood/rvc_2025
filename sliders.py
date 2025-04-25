@@ -10,6 +10,7 @@ def render_rank_sliders(candidates):
     # Track locking and values
     locked = {rank: {} for rank in range(1, 6)}
     values = {rank: {} for rank in range(1, 6)}
+    remaining_display = {}
 
     cols = st.columns(len(candidates))
     for i, cand in enumerate(candidates):
@@ -32,7 +33,6 @@ def render_rank_sliders(candidates):
         remaining = max(0, 100 - total_locked)
 
         for cand in candidates:
-            slider_key = f"rank_{rank}_{cand}"
             if locked[rank][cand]:
                 manual_inputs[cand] = values[rank][cand]
             else:
@@ -50,7 +50,11 @@ def render_rank_sliders(candidates):
                 manual_inputs[c] = max(0, manual_inputs[c] - round(overage * prop))
 
         final_total = sum(manual_inputs.values()) + total_locked
-        st.markdown(f"**Remaining % to allocate for Rank {rank}: {max(0, 100 - final_total)}%**")
+        remaining_display[rank] = max(0, 100 - final_total)
         rankings[rank] = manual_inputs.copy()
+
+    # Display each rank's remaining under its section
+    for rank in range(1, 6):
+        st.markdown(f"**Remaining % to allocate for Rank {rank}: {remaining_display[rank]}%**")
 
     return rankings
